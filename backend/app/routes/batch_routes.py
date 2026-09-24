@@ -5,6 +5,7 @@ from app.models.batch import MedicineBatch
 from app.schemas import BatchCreate
 from app.auth.dependencies import require_role
 from app.utils.ledger import append_custody_event
+from app.utils.qr_generator import generate_qr_base64
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
@@ -25,7 +26,6 @@ def create_batch(
     db.commit()
     db.refresh(new_batch)
 
-    # Genesis ledger entry — first custody record for this batch
     append_custody_event(
         db=db,
         batch_id=new_batch.id,
@@ -35,10 +35,13 @@ def create_batch(
         location="Manufacturer facility",
     )
 
+    qr_base64 = generate_qr_base64(str(new_batch.batch_uid))
+
     return {
         "batch_id": new_batch.id,
         "batch_uid": str(new_batch.batch_uid),
         "status": new_batch.status,
+        "qr_code_base64": qr_base64,
     }
 
 
