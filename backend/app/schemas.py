@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from datetime import date
+
 
 class UserRegister(BaseModel):
     name: str
@@ -15,3 +17,13 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class BatchCreate(BaseModel):
+    drug_name: str
+    quantity: int
+    manufacture_date: date
+    expiry_date: date
+
+class CustodyTransfer(BaseModel):
+    batch_uid: str
+    location: str
