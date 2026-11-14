@@ -11,8 +11,16 @@ from app.auth.dependencies import require_role
 from fastapi import Depends
 from app.models import user, batch, custody_ledger, transaction, flag, temperature  # noqa: F401
 from app.routes import coldchain_routes, ai_routes
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="MediChain API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_routes.router)
 app.include_router(batch_routes.router)

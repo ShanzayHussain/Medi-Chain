@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from app.auth.dependencies import require_role
 from app.utils.ledger import verify_chain
+
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -22,6 +23,15 @@ def batch_item(b):
         "tag": tag,
         "batch_uid": str(b.batch_uid),
     }
+
+
+def status_chart(batches):
+    counts = {}
+    for b in batches:
+        k = "expired" if b.expiry_date < date.today() else b.status
+        counts[k] = counts.get(k, 0) + 1
+    return {"title": "Batches by status",
+            "data": [{"label": k, "value": v} for k, v in counts.items()]}
 
 
 def handled_batches(db: Session, user_id: int):
@@ -50,6 +60,11 @@ def manufacturer_dashboard(db: Session = Depends(get_db),
             "Expired batches": sum(1 for b in batches if b.expiry_date < date.today()),
             "Tampered chains": tampered,
         },
+        "charts": [
+            status_chart(batches),
+            {"title": "Units sold per batch (latest 6)",
+             "data": [{"label": b.drug_name[:14], "value": b.quantity_sold or 0} for b in batches[:6]]},
+        ],
         "sections": [{"title": "My batches", "items": [batch_item(b) for b in batches]}],
     }
 
@@ -63,6 +78,7 @@ def distributor_dashboard(db: Session = Depends(get_db),
             "Batches handled": len(batches),
             "Expired batches": sum(1 for b in batches if b.expiry_date < date.today()),
         },
+        "charts": [status_chart(batches)],
         "sections": [{"title": "Batches I have handled", "items": [batch_item(b) for b in batches]}],
     }
 
@@ -82,12 +98,26 @@ def pharmacy_dashboard(db: Session = Depends(get_db),
     units_sold = (db.query(func.coalesce(func.sum(Transaction.quantity), 0))
                   .filter(Transaction.seller_id == uid).scalar())
 
+    days = [date.today() - timedelta(days=i) for i in range(6, -1, -1)]
+    per_day = {d: 0 for d in days}
+    recent = (db.query(Transaction)
+              .filter(Transaction.seller_id == uid,
+                      Transaction.transaction_date >= datetime.combine(days[0], datetime.min.time()))
+              .all())
+    for t in recent:
+        if t.transaction_date:
+            d = t.transaction_date.date()
+            if d in per_day:
+                per_day[d] += t.quantity
+
     return {
         "summary": {
             "Batches in stock list": len(batches),
             "Units I sold": int(units_sold),
             "Expiring within 90 days": len(expiring),
         },
+        "charts": [{"title": "Units sold, last 7 days",
+                    "data": [{"label": d.strftime("%a %d"), "value": v} for d, v in per_day.items()]}],
         "sections": [
             {"title": "Expiry alerts", "items": [batch_item(b) for b in expiring]},
             {"title": "My batches", "items": [batch_item(b) for b in batches]},
@@ -126,6 +156,10 @@ def admin_dashboard(db: Session = Depends(get_db),
             "Tampered chains": len(tampered_items),
             "Expired batches": sum(1 for b in batches if b.expiry_date < date.today()),
         },
+        "charts": [
+            status_chart(batches),
+            {"title": "Users by role", "data": [{"label": r, "value": c} for r, c in users_by_role]},
+        ],
         "sections": [
             {"title": "Tampered batches", "items": tampered_items},
             {"title": "Users by role", "items": [

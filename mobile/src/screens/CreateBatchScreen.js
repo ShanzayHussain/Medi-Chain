@@ -3,6 +3,7 @@ import {
     View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, Image, Switch,   // CHANGE 1: added Switch
 } from "react-native";
 import { api } from "../api";
+import { C } from "../theme";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

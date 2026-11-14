@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { api } from "../api";
+import { C } from "../theme";
 
 export default function ScanScreen({ route, navigation }) {
     const { mode } = route.params; // receive | sell | verify | temp

@@ -1,33 +1,39 @@
-import { useLayoutEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Button } from "react-native";
+import { useLayoutEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { setToken } from "../api";
+import { C } from "../theme";
+import DashboardScreen from "./DashboardScreen";
+import SideMenu from "../components/SideMenu";
 
 const FORECAST = { label: "Demand forecast", screen: "Dashboard", params: { path: "/ai/forecast" } };
 const COLD = { label: "Cold chain reading", screen: "Scan", params: { mode: "temp" } };
+const RECEIVE = { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } };
 
 const MENU = {
     manufacturer: [
+        { label: "Dashboard", home: true, params: { role: "manufacturer" } },
         { label: "Create batch", screen: "CreateBatch" },
-        { label: "My batches", screen: "Dashboard", params: { role: "manufacturer" } },
         COLD,
         FORECAST,
     ],
     distributor: [
-        { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
-        { label: "My inventory", screen: "Dashboard", params: { role: "distributor" } },
+        { label: "Dashboard", home: true, params: { role: "distributor" } },
+        RECEIVE,
         COLD,
         FORECAST,
     ],
     pharmacy: [
-        { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
+        { label: "Dashboard", home: true, params: { role: "pharmacy" } },
+        RECEIVE,
         { label: "Record sale", screen: "Scan", params: { mode: "sell" } },
-        { label: "Stock", screen: "Dashboard", params: { role: "pharmacy" } },
         COLD,
         FORECAST,
     ],
-    customer: [{ label: "Scan to verify", screen: "Scan", params: { mode: "verify" } }],
+    customer: [
+        { label: "Scan to verify", home: true, landing: "customer", screen: "Scan", params: { mode: "verify" } },
+    ],
     admin: [
-        { label: "Admin overview", screen: "Dashboard", params: { role: "admin" } },
+        { label: "Admin overview", home: true, params: { role: "admin" } },
         { label: "Flags", screen: "Dashboard", params: { path: "/flags/" } },
         { label: "AI anomaly scan", screen: "Dashboard", params: { path: "/ai/anomalies" } },
         { label: "AI risk report", screen: "Dashboard", params: { path: "/ai/report" } },
@@ -37,40 +43,66 @@ const MENU = {
 
 export default function HomeScreen({ route, navigation }) {
     const { role } = route.params;
+    const items = MENU[role] || [];
+    const home = items.find((i) => i.home);
+    const [open, setOpen] = useState(false);
+
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerRight: () => (
-                <Button
-                    title="Log out"
-                    onPress={() => {
-                        setToken(null);
-                        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-                    }}
-                />
+            title: "MediChain",
+            headerLeft: () => (
+                <TouchableOpacity onPress={() => setOpen(true)} style={s.burger}>
+                    <Text style={s.burgerText}>☰</Text>
+                </TouchableOpacity>
             ),
+            headerRight: undefined,
         });
     }, [navigation]);
 
-    const open = (item) => {
+    const select = (item) => {
+        setOpen(false);
+        if (item.home && !item.landing) return;
         if (item.screen) navigation.navigate(item.screen, item.params);
-        else Alert.alert("Coming soon", `${item.label} is not built yet`);
+    };
+
+    const logout = () => {
+        setOpen(false);
+        setToken(null);
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     };
 
     return (
-        <View style={s.container}>
-            <Text style={s.title}>Logged in as {role}</Text>
-            {(MENU[role] || []).map((item) => (
-                <TouchableOpacity key={item.label} style={s.card} onPress={() => open(item)}>
-                    <Text style={s.cardText}>{item.label}</Text>
-                </TouchableOpacity>
-            ))}
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+            {home?.landing === "customer" ? (
+                <View style={s.welcome}>
+                    <Text style={s.title}>Welcome</Text>
+                    <Text style={s.sub}>Scan the QR code on a medicine to check that it is genuine.</Text>
+                    <TouchableOpacity style={s.scanBtn} onPress={() => navigation.navigate("Scan", { mode: "verify" })}>
+                        <Text style={s.scanText}>Scan to verify</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                home && <DashboardScreen route={{ params: home.params }} navigation={navigation} />
+            )}
+
+            <SideMenu
+                open={open}
+                onClose={() => setOpen(false)}
+                role={role}
+                items={items}
+                onSelect={select}
+                onLogout={logout}
+            />
         </View>
     );
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, padding: 24, paddingTop: 40 },
-    title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
-    card: { backgroundColor: "#fff", borderRadius: 10, padding: 18, marginBottom: 12, elevation: 2 },
-    cardText: { fontSize: 18 },
+    burger: { paddingHorizontal: 12, paddingVertical: 4 },
+    burgerText: { color: C.bg, fontSize: 26 },
+    welcome: { flex: 1, justifyContent: "center", padding: 28 },
+    title: { fontSize: 28, fontWeight: "bold", color: C.navy, marginBottom: 8 },
+    sub: { fontSize: 16, color: C.muted, marginBottom: 28 },
+    scanBtn: { backgroundColor: C.primary, borderRadius: 12, padding: 18, alignItems: "center" },
+    scanText: { color: C.bg, fontSize: 18, fontWeight: "600" },
 });

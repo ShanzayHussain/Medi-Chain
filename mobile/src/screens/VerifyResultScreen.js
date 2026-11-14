@@ -3,6 +3,7 @@ import {
     View, Text, ScrollView, ActivityIndicator, StyleSheet, Button, TextInput, Alert,
 } from "react-native";
 import { api } from "../api";
+import { C } from "../theme";
 
 export default function VerifyResultScreen({ route }) {
     const { batch_uid } = route.params;

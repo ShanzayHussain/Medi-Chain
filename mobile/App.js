@@ -24,7 +24,14 @@ setUnauthorizedHandler(() => {
 export default function App() {
   return (
     <NavigationContainer ref={navRef}>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: "#001F54" },
+          headerTintColor: "#FEFCFB",
+          headerTitleStyle: { fontWeight: "600" },
+          contentStyle: { backgroundColor: "#FEFCFB" },
+        }}
+      >
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerBackVisible: false }} />

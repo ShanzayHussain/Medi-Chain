@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView } from "react-native";
 import { api, setToken } from "../api";
+import { C } from "../theme";
 
 const ROLES = ["manufacturer", "distributor", "pharmacy", "customer"];
 
