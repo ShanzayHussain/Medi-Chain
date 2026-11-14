@@ -12,7 +12,7 @@ const MENU = {
     ],
     pharmacy: [
         { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
-        { label: "Record sale", screen: null },
+        { label: "Record sale", screen: "Scan", params: { mode: "sell" } },
         { label: "Stock", screen: null },
     ],
     customer: [{ label: "Scan to verify", screen: "Scan", params: { mode: "verify" } }],
