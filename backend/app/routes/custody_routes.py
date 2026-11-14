@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.batch import MedicineBatch
+from app.models.custody_ledger import CustodyLedger
+from app.models.user import User
 from app.schemas import CustodyTransfer
 from app.auth.dependencies import require_role
 from app.utils.ledger import append_custody_event, verify_chain
@@ -19,11 +21,11 @@ def transfer_custody(
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    # Reuse check — a batch already sold shouldn't be transferred again
-    if batch.status == "sold":
+    # Reuse check: a fully sold batch shouldn't be transferred again
+    if batch.status in ("sold", "sold_out"):
         raise HTTPException(
             status_code=400,
-            detail="This batch is already marked as sold — custody cannot be transferred again. Possible QR reuse or counterfeit."
+            detail="This batch is fully sold, custody cannot be transferred again. Possible QR reuse or counterfeit.",
         )
 
     entry = append_custody_event(
@@ -56,18 +58,40 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
     result["drug_name"] = batch.drug_name
     result["batch_status"] = batch.status
 
-    # Expiry check
+    # Expiry
     is_expired = batch.expiry_date < date.today()
     result["is_expired"] = is_expired
+    result["expiry_date"] = batch.expiry_date.isoformat()
     if is_expired:
         result["valid"] = False
         result["reason"] = f"Batch expired on {batch.expiry_date.isoformat()}"
 
-    # Reuse/already-sold flag
-    if batch.status == "sold":
-        result["already_sold"] = True
-        result["warning"] = "This batch was already marked as sold. Scanning it again may indicate reuse or counterfeit packaging."
-    else:
-        result["already_sold"] = False
+    # Stock
+    sold = batch.quantity_sold or 0
+    result["quantity_total"] = batch.quantity
+    result["quantity_sold"] = sold
+    result["quantity_remaining"] = batch.quantity - sold
+    result["sold_out"] = sold >= batch.quantity
+    if result["sold_out"]:
+        result["warning"] = "All units of this batch are already sold. A new scan of this QR on a product may indicate reuse or counterfeit packaging."
+
+    # Full supply-chain history for the customer screen
+    rows = (
+        db.query(CustodyLedger, User)
+        .join(User, User.id == CustodyLedger.actor_id)
+        .filter(CustodyLedger.batch_id == batch.id)
+        .order_by(CustodyLedger.id.asc())
+        .all()
+    )
+    result["history"] = [
+        {
+            "event": entry.event_type,
+            "role": entry.actor_role,
+            "organization": u.organization_name or u.name,
+            "location": entry.location,
+            "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+        }
+        for entry, u in rows
+    ]
 
     return result

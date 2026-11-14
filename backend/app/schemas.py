@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import date
 
@@ -26,4 +26,9 @@ class BatchCreate(BaseModel):
 
 class CustodyTransfer(BaseModel):
     batch_uid: str
+    location: str
+
+class SaleCreate(BaseModel):
+    batch_uid: str
+    quantity: int = Field(gt=0)   # units sold in this sale, must be positive
     location: str

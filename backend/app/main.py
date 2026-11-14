@@ -9,7 +9,7 @@ from app.routes import (
 )
 from app.auth.dependencies import require_role
 from fastapi import Depends
-from app.models import user, batch, custody_ledger 
+from app.models import user, batch, custody_ledger, transaction
 
 app = FastAPI(title="MediChain API")
 

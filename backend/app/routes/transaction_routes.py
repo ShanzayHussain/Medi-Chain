@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.batch import MedicineBatch
-from app.schemas import CustodyTransfer
+from app.models.transaction import Transaction
+from app.schemas import SaleCreate
 from app.auth.dependencies import require_role
 from app.utils.ledger import append_custody_event
 
@@ -10,17 +11,38 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 @router.post("/")
 def create_transaction(
-    sale: CustodyTransfer,   # reusing batch_uid + location fields; location can be "Sold to customer"
+    sale: SaleCreate,
     db: Session = Depends(get_db),
     user=Depends(require_role(["pharmacy"])),
 ):
-    batch = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == sale.batch_uid).first()
+    # with_for_update locks the row so two simultaneous sales can't oversell the batch
+    batch = (
+        db.query(MedicineBatch)
+        .filter(MedicineBatch.batch_uid == sale.batch_uid)
+        .with_for_update()
+        .first()
+    )
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    if batch.status == "sold":
-        raise HTTPException(status_code=400, detail="Batch already marked as sold")
+    sold = batch.quantity_sold or 0
+    remaining = batch.quantity - sold
+    if sale.quantity > remaining:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only {remaining} units left in this batch, cannot sell {sale.quantity}. Possible counterfeit or reused QR.",
+        )
 
+    db.add(Transaction(
+        batch_id=batch.id,
+        seller_id=user["user_id"],
+        quantity=sale.quantity,
+    ))
+    batch.quantity_sold = sold + sale.quantity
+    batch.status = "sold_out" if batch.quantity_sold >= batch.quantity else "in_stock"
+    db.commit()
+
+    # Ledger records the event; the unit count lives in the transactions table
     entry = append_custody_event(
         db=db,
         batch_id=batch.id,
@@ -30,13 +52,12 @@ def create_transaction(
         location=sale.location,
     )
 
-    batch.status = "sold"
-    db.commit()
-
     return {
-        "message": "Sale recorded, batch marked as sold",
+        "message": "Sale recorded",
+        "units_sold": sale.quantity,
+        "units_remaining": batch.quantity - batch.quantity_sold,
+        "batch_status": batch.status,
         "ledger_entry_id": entry.id,
-        "current_hash": entry.current_hash,
     }
 
 

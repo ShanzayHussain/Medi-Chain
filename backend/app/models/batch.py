@@ -15,4 +15,5 @@ class MedicineBatch(Base):
     manufacture_date = Column(Date)
     expiry_date = Column(Date)
     status = Column(String(20), default="created")
+    quantity_sold = Column(Integer, default=0, server_default="0")
     created_at = Column(TIMESTAMP, server_default=func.now())
