@@ -1,4 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { useLayoutEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Button } from "react-native";
+import { setToken } from "../api";
 
 // screen: name of the real screen to open. null = not built yet
 const MENU = {
@@ -23,6 +25,19 @@ const MENU = {
 
 export default function HomeScreen({ route, navigation }) {
     const { role } = route.params;
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <Button
+                    title="Log out"
+                    onPress={() => {
+                        setToken(null);
+                        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+                    }}
+                />
+            ),
+        });
+    }, [navigation]);
 
     const open = (item) => {
         if (item.screen) navigation.navigate(item.screen, item.params);
