@@ -21,6 +21,9 @@ def create_batch(
         quantity=batch.quantity,
         manufacture_date=batch.manufacture_date,
         expiry_date=batch.expiry_date,
+        requires_cold_chain=batch.cold_chain,
+        min_temp=batch.min_temp if batch.cold_chain else None,
+        max_temp=batch.max_temp if batch.cold_chain else None,
     )
     db.add(new_batch)
     db.commit()

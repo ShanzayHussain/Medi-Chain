@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-    View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, Image,
+    View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, Image, Switch,   // CHANGE 1: added Switch
 } from "react-native";
 import { api } from "../api";
 
@@ -11,6 +11,7 @@ export default function CreateBatchScreen() {
     const [quantity, setQuantity] = useState("");
     const [mfgDate, setMfgDate] = useState("");
     const [expDate, setExpDate] = useState("");
+    const [cold, setCold] = useState(false);                                          // CHANGE 2: new state
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -30,8 +31,11 @@ export default function CreateBatchScreen() {
                 quantity: qty,
                 manufacture_date: mfgDate,
                 expiry_date: expDate,
+                cold_chain: cold,                                                     // CHANGE 3a: sent to backend
+                min_temp: 2,
+                max_temp: 8,
             });
-            setResult({ ...data, drug_name: drugName.trim(), quantity: qty });
+            setResult({ ...data, drug_name: drugName.trim(), quantity: qty, cold });
         } catch (e) {
             Alert.alert("Could not create batch", e.message);
         } finally {
@@ -42,6 +46,7 @@ export default function CreateBatchScreen() {
     const reset = () => {
         setResult(null);
         setDrugName(""); setQuantity(""); setMfgDate(""); setExpDate("");
+        setCold(false);
     };
 
     if (result) {
@@ -51,6 +56,7 @@ export default function CreateBatchScreen() {
                 <Text style={s.drug}>{result.drug_name}</Text>
                 <Text style={s.meta}>Quantity: {result.quantity}</Text>
                 <Text style={s.meta}>Status: {result.status}</Text>
+                {result.cold && <Text style={s.meta}>Cold chain: required (2–8 °C)</Text>}
                 <Image
                     style={s.qr}
                     source={{ uri: `data:image/png;base64,${result.qr_code_base64}` }}
@@ -73,6 +79,13 @@ export default function CreateBatchScreen() {
                 value={mfgDate} onChangeText={setMfgDate} />
             <TextInput style={s.input} placeholder="Expiry date (YYYY-MM-DD)"
                 value={expDate} onChangeText={setExpDate} />
+
+            {/* CHANGE 3b: cold chain switch */}
+            <View style={s.switchRow}>
+                <Switch value={cold} onValueChange={setCold} />
+                <Text style={s.switchLabel}>Needs cold chain (2–8 °C)</Text>
+            </View>
+
             <Button title={loading ? "Creating..." : "Create batch"} onPress={submit} disabled={loading} />
         </ScrollView>
     );
@@ -87,4 +100,6 @@ const s = StyleSheet.create({
     qr: { width: 260, height: 260, alignSelf: "center", marginVertical: 20 },
     uidLabel: { fontWeight: "600" },
     uid: { fontSize: 13, marginBottom: 20 },
+    switchRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+    switchLabel: { marginLeft: 10, fontSize: 16 },
 });

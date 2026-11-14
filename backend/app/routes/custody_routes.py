@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas import CustodyTransfer
 from app.auth.dependencies import require_role
 from app.utils.ledger import append_custody_event, verify_chain
+from app.utils.coldchain import coldchain_summary
 
 router = APIRouter(prefix="/custody", tags=["custody"])
 
@@ -93,5 +94,11 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         }
         for entry, u in rows
     ]
+        # Cold chain
+    cc = coldchain_summary(db, batch)
+    result["cold_chain"] = cc
+    if cc["required"] and cc["status"] == "breached" and result["valid"]:
+        result["valid"] = False
+        result["reason"] = f"Cold chain breached: {cc['breaches']} reading(s) outside {cc['range']}"
 
     return result

@@ -2,24 +2,36 @@ import { useLayoutEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Button } from "react-native";
 import { setToken } from "../api";
 
-// screen: name of the real screen to open. null = not built yet
+const FORECAST = { label: "Demand forecast", screen: "Dashboard", params: { path: "/ai/forecast" } };
+const COLD = { label: "Cold chain reading", screen: "Scan", params: { mode: "temp" } };
+
 const MENU = {
     manufacturer: [
         { label: "Create batch", screen: "CreateBatch" },
         { label: "My batches", screen: "Dashboard", params: { role: "manufacturer" } },
+        COLD,
+        FORECAST,
     ],
     distributor: [
         { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
         { label: "My inventory", screen: "Dashboard", params: { role: "distributor" } },
+        COLD,
+        FORECAST,
     ],
     pharmacy: [
         { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
         { label: "Record sale", screen: "Scan", params: { mode: "sell" } },
         { label: "Stock", screen: "Dashboard", params: { role: "pharmacy" } },
+        COLD,
+        FORECAST,
     ],
     customer: [{ label: "Scan to verify", screen: "Scan", params: { mode: "verify" } }],
     admin: [
         { label: "Admin overview", screen: "Dashboard", params: { role: "admin" } },
+        { label: "Flags", screen: "Dashboard", params: { path: "/flags/" } },
+        { label: "AI anomaly scan", screen: "Dashboard", params: { path: "/ai/anomalies" } },
+        { label: "AI risk report", screen: "Dashboard", params: { path: "/ai/report" } },
+        FORECAST,
     ],
 };
 

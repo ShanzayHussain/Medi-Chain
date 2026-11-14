@@ -7,13 +7,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api";
 
 const tagColor = (tag) => {
-    if (tag === "expired" || tag === "TAMPERED") return "#c62828";
-    if (tag === "sold_out") return "#757575";
+    if (["expired", "TAMPERED", "high", "shortage", "open"].includes(tag)) return "#c62828";
+    if (["medium", "low"].includes(tag)) return "#e65100";
+    if (["sold_out", "resolved", "no_sales"].includes(tag)) return "#757575";
     return "#2e7d32";
 };
 
 export default function DashboardScreen({ route, navigation }) {
-    const { role } = route.params;
+    const { role, path } = route.params;
+    const endpoint = path || `/dashboard/${role}`;
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -21,14 +23,13 @@ export default function DashboardScreen({ route, navigation }) {
     const load = async () => {
         try {
             setError(null);
-            setData(await api(`/dashboard/${role}`));
+            setData(await api(endpoint));
         } catch (e) {
             setError(e.message);
         }
     };
 
-    // reload every time the screen comes back into view
-    useFocusEffect(useCallback(() => { load(); }, [role]));
+    useFocusEffect(useCallback(() => { load(); }, [endpoint]));
 
     const onRefresh = async () => {
         setRefreshing(true);

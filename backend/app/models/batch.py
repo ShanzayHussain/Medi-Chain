@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, Date, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, TIMESTAMP, ForeignKey, Boolean, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.database import Base
@@ -17,3 +17,6 @@ class MedicineBatch(Base):
     status = Column(String(20), default="created")
     quantity_sold = Column(Integer, default=0, server_default="0")
     created_at = Column(TIMESTAMP, server_default=func.now())
+    requires_cold_chain = Column(Boolean, default=False)
+    min_temp = Column(Float, nullable=True)
+    max_temp = Column(Float, nullable=True)
