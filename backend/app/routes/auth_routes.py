@@ -1,3 +1,4 @@
+from app.models import custody_ledger
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -11,7 +12,7 @@ VALID_ROLES = {"manufacturer", "distributor", "pharmacy", "customer", "admin"}
 
 @router.post("/register", response_model=Token)
 def register(user: UserRegister, db: Session = Depends(get_db)):
-    if user.role not in VALID_ROLES:
+    if user.role not in VALID_ROLES or user.role == "admin":
         raise HTTPException(status_code=400, detail="Invalid role")
 
     existing = db.query(User).filter(User.email == user.email).first()

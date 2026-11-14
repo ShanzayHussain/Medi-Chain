@@ -4,21 +4,20 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 const MENU = {
     manufacturer: [
         { label: "Create batch", screen: "CreateBatch" },
-        { label: "My batches", screen: null },
+        { label: "My batches", screen: "Dashboard", params: { role: "manufacturer" } },
     ],
     distributor: [
         { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
-        { label: "My inventory", screen: null },
+        { label: "My inventory", screen: "Dashboard", params: { role: "distributor" } },
     ],
     pharmacy: [
         { label: "Scan to receive", screen: "Scan", params: { mode: "receive" } },
         { label: "Record sale", screen: "Scan", params: { mode: "sell" } },
-        { label: "Stock", screen: null },
+        { label: "Stock", screen: "Dashboard", params: { role: "pharmacy" } },
     ],
     customer: [{ label: "Scan to verify", screen: "Scan", params: { mode: "verify" } }],
     admin: [
-        { label: "Flags", screen: null },
-        { label: "All batches", screen: null },
+        { label: "Admin overview", screen: "Dashboard", params: { role: "admin" } },
     ],
 };
 
