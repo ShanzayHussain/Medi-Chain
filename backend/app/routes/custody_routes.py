@@ -101,4 +101,5 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         result["valid"] = False
         result["reason"] = f"Cold chain breached: {cc['breaches']} reading(s) outside {cc['range']}"
 
+    result["price_pkr"] = batch.price_pkr or 0
     return result

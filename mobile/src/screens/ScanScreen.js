@@ -19,7 +19,7 @@ export default function ScanScreen({ route, navigation }) {
         return (
             <View style={s.center}>
                 <Text style={s.msg}>Camera permission is needed to scan QR codes</Text>
-                <Button title="Allow camera" onPress={requestPermission} />
+                <Button title="Allow camera" color={C.primary} onPress={requestPermission} />
             </View>
         );
     }
@@ -101,18 +101,18 @@ export default function ScanScreen({ route, navigation }) {
                 <TextInput style={s.input}
                     placeholder={mode === "temp" ? "Where is the batch now?" : "Your location (e.g. Karachi Hub)"}
                     value={location} onChangeText={setLocation} />
-                <Button title={busy ? "Saving..." : label} onPress={confirm} disabled={busy} />
+                <Button title={busy ? "Saving..." : label} color={C.primary} onPress={confirm} disabled={busy} />
                 {mode === "temp" && (
                     <View style={{ marginTop: 20 }}>
                         <Text style={s.msg}>No sensor connected? Simulate one:</Text>
-                        <Button title="Simulate sensor: normal journey" onPress={() => simulate(false)} disabled={busy} />
+                        <Button title="Simulate sensor: normal journey" color={C.primary} onPress={() => simulate(false)} disabled={busy} />
                         <View style={{ height: 10 }} />
                         <Button title="Simulate sensor: with temperature breach" color="#c62828"
                             onPress={() => simulate(true)} disabled={busy} />
                     </View>
                 )}
                 <View style={{ height: 10 }} />
-                <Button title="Scan again" onPress={rescan} />
+                <Button title="Scan again" color={C.primary} onPress={rescan} />
             </View>
         );
     }

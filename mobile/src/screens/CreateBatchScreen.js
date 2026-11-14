@@ -13,6 +13,7 @@ export default function CreateBatchScreen() {
     const [quantity, setQuantity] = useState("");
     const [mfgDate, setMfgDate] = useState("");
     const [expDate, setExpDate] = useState("");
+    const [price, setPrice] = useState("100");
     const [cold, setCold] = useState(false);
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -34,6 +35,7 @@ export default function CreateBatchScreen() {
                 quantity: qty,
                 manufacture_date: mfgDate,
                 expiry_date: expDate,
+                price_pkr: parseInt(price, 10) || 0,
                 cold_chain: cold,
                 min_temp: 2,
                 max_temp: 8,
@@ -107,6 +109,8 @@ export default function CreateBatchScreen() {
                 value={mfgDate} onChangeText={setMfgDate} />
             <TextInput style={s.input} placeholder="Expiry date (YYYY-MM-DD)"
                 value={expDate} onChangeText={setExpDate} />
+            <TextInput style={s.input} placeholder="Price per unit (PKR)" keyboardType="numeric"
+                value={price} onChangeText={setPrice} />
             <View style={s.switchRow}>
                 <Switch value={cold} onValueChange={setCold} />
                 <Text style={s.switchLabel}>Needs cold chain (2–8 °C)</Text>

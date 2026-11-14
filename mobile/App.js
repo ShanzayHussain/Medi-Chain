@@ -9,6 +9,8 @@ import CreateBatchScreen from "./src/screens/CreateBatchScreen";
 import ScanScreen from "./src/screens/ScanScreen";
 import VerifyResultScreen from "./src/screens/VerifyResultScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
+import CheckoutScreen from "./src/screens/CheckoutScreen";
+import { C } from "./src/theme";
 
 const Stack = createNativeStackNavigator();
 const navRef = createNavigationContainerRef();
@@ -26,10 +28,10 @@ export default function App() {
     <NavigationContainer ref={navRef}>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: "#001F54" },
-          headerTintColor: "#FEFCFB",
+          headerStyle: { backgroundColor: C.navy },
+          headerTintColor: C.bg,
           headerTitleStyle: { fontWeight: "600" },
-          contentStyle: { backgroundColor: "#FEFCFB" },
+          contentStyle: { backgroundColor: C.bg },
         }}
       >
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
@@ -39,6 +41,7 @@ export default function App() {
         <Stack.Screen name="Scan" component={ScanScreen} options={{ title: "Scan QR" }} />
         <Stack.Screen name="VerifyResult" component={VerifyResultScreen} options={{ title: "Verification" }} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Dashboard" }} />
+        <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ title: "Checkout" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

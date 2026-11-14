@@ -24,6 +24,7 @@ def create_batch(
         requires_cold_chain=batch.cold_chain,
         min_temp=batch.min_temp if batch.cold_chain else None,
         max_temp=batch.max_temp if batch.cold_chain else None,
+        price_pkr=batch.price_pkr,
     )
     db.add(new_batch)
     db.commit()

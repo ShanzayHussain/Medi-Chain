@@ -9,8 +9,8 @@ import { C } from "../theme";
 import BarChart from "../components/BarChart";
 
 const tagColor = (tag) => {
-    if (["expired", "TAMPERED", "high", "shortage", "open"].includes(tag)) return C.danger;
-    if (["medium", "low"].includes(tag)) return C.warn;
+    if (["expired", "TAMPERED", "high", "shortage", "open", "failed"].includes(tag)) return C.danger;
+    if (["medium", "low", "pending"].includes(tag)) return C.warn;
     if (["sold_out", "resolved", "no_sales", "info"].includes(tag)) return "#757575";
     return C.ok;
 };

@@ -1,13 +1,18 @@
 export const C = {
-    bg: "#FEFCFB",
-    accent: "#1282A2",
-    primary: "#034078",
-    navy: "#001F54",
-    dark: "#0A1128",
+    bg: "#F4FBF6",        // very light tint of D8F3DC, so cards and text stay readable
     card: "#FFFFFF",
-    muted: "#5b6577",
-    border: "#dfe6ee",
-    ok: "#2e7d32",
+    tint: "#D8F3DC",      // light green panels (cold chain box, AI box)
+    soft: "#B7E4C7",      // light text on dark green, soft borders
+    border: "#B7E4C7",
+    accent: "#40916C",    // buttons, highlights, row borders
+    accentLight: "#74C69D",
+    primary: "#2D6A4F",   // main buttons, stat cards
+    navy: "#1B4332",      // headers, side menu, titles
+    dark: "#081C15",      // body text, darkest surfaces
+    muted: "#52695d",
+    onDark: "#D8F3DC",    // secondary text on dark green
+    track: "#E3F4E8",     // chart bar background
+    ok: "#2e7d32",        // status colors stay red/orange/green on purpose
     warn: "#e65100",
     danger: "#c62828",
 };

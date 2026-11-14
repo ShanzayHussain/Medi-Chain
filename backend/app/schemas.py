@@ -42,6 +42,7 @@ class BatchCreate(BaseModel):
     cold_chain: bool = False
     min_temp: float = 2.0
     max_temp: float = 8.0
+    price_pkr: int = Field(default=100, ge=0)
 
 class TemperatureIn(BaseModel):
     batch_uid: str

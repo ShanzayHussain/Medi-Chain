@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { setToken } from "../api";
 import { C } from "../theme";
 import DashboardScreen from "./DashboardScreen";
@@ -46,6 +46,7 @@ export default function HomeScreen({ route, navigation }) {
     const items = MENU[role] || [];
     const home = items.find((i) => i.home);
     const [open, setOpen] = useState(false);
+    const [pasted, setPasted] = useState("");
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -80,6 +81,9 @@ export default function HomeScreen({ route, navigation }) {
                     <TouchableOpacity style={s.scanBtn} onPress={() => navigation.navigate("Scan", { mode: "verify" })}>
                         <Text style={s.scanText}>Scan to verify</Text>
                     </TouchableOpacity>
+                    <TextInput style={s.paste} placeholder="Or paste a batch ID" placeholderTextColor={C.muted}
+                        autoCapitalize="none" value={pasted} onChangeText={setPasted}
+                        onSubmitEditing={() => pasted.trim() && navigation.navigate("VerifyResult", { batch_uid: pasted.trim() })} />
                 </View>
             ) : (
                 home && <DashboardScreen route={{ params: home.params }} navigation={navigation} />
@@ -105,4 +109,5 @@ const s = StyleSheet.create({
     sub: { fontSize: 16, color: C.muted, marginBottom: 28 },
     scanBtn: { backgroundColor: C.primary, borderRadius: 12, padding: 18, alignItems: "center" },
     scanText: { color: C.bg, fontSize: 18, fontWeight: "600" },
+    paste: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 12, marginTop: 16, backgroundColor: C.card, color: C.dark },
 });

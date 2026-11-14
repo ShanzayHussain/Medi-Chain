@@ -20,3 +20,4 @@ class MedicineBatch(Base):
     requires_cold_chain = Column(Boolean, default=False)
     min_temp = Column(Float, nullable=True)
     max_temp = Column(Float, nullable=True)
+    price_pkr = Column(Integer, default=0)
