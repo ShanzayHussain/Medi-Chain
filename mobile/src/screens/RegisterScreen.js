@@ -37,7 +37,7 @@ export default function RegisterScreen({ navigation }) {
                 organization_name: role === "customer" ? null : org.trim(),
             });
             setToken(data.access_token);
-            navigation.replace("Home", { role: data.role });
+            navigation.replace("Home", { role: data.role, user: data.user });
         } catch (e) {
             Alert.alert("Registration failed", e.message);
         } finally {

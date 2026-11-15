@@ -16,3 +16,13 @@ export const C = {
     warn: "#e65100",
     danger: "#c62828",
 };
+
+export const GRAD = ["#1B4332", "#2D6A4F", "#40916C"];
+
+export const SHADOW = {
+    shadowColor: "#1B4332",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+};
