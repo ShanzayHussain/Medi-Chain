@@ -235,3 +235,59 @@ def list_orders(db: Session = Depends(get_db),
             } for o, b in rows
         ]}],
     }
+
+
+CATEGORIES = [
+    ("Pain Relief", ("panadol", "disprin", "brufen", "calpol", "arinac", "paracetamol", "ibuprofen")),
+    ("Antibiotics", ("augmentin", "amoxil", "flagyl", "amoxicillin")),
+    ("Diabetes", ("insulin", "glucophage")),
+    ("Respiratory", ("ventolin",)),
+    ("Stomach", ("risek",)),
+    ("Allergy", ("cetirizine",)),
+]
+
+
+def category_of(name: str) -> str:
+    n = name.lower()
+    for cat, words in CATEGORIES:
+        if any(w in n for w in words):
+            return cat
+    return "Other"
+
+
+@router.get("/market")
+def market(db: Session = Depends(get_db), user=Depends(require_role(["customer"]))):
+    batches = (db.query(MedicineBatch)
+               .filter(MedicineBatch.price_pkr > 0, MedicineBatch.expiry_date >= date.today())
+               .order_by(MedicineBatch.id.desc()).limit(100).all())
+    batches = [b for b in batches if b.quantity - (b.quantity_sold or 0) > 0]
+    if not batches:
+        return {"categories": [], "items": []}
+
+    # the pharmacy that most recently received each batch is the seller
+    sellers = {}
+    rows = (db.query(CustodyLedger)
+            .filter(CustodyLedger.batch_id.in_([b.id for b in batches]),
+                    CustodyLedger.actor_role == "pharmacy",
+                    CustodyLedger.event_type == "TRANSFERRED")
+            .order_by(CustodyLedger.id.asc()).all())
+    for r in rows:
+        sellers[r.batch_id] = r.actor_id
+    users = {u.id: (u.organization_name or u.name)
+             for u in db.query(User).filter(User.id.in_(set(sellers.values()) or {0})).all()}
+
+    items = []
+    for b in batches:
+        if b.id not in sellers:
+            continue
+        if not verify_chain(db, b.id)["valid"]:
+            continue
+        if coldchain_summary(db, b).get("status") == "breached":
+            continue
+        items.append({
+            "batch_uid": str(b.batch_uid), "drug": b.drug_name, "price_pkr": b.price_pkr,
+            "remaining": b.quantity - (b.quantity_sold or 0), "expiry": b.expiry_date.isoformat(),
+            "seller": users.get(sellers[b.id], "Pharmacy"), "category": category_of(b.drug_name),
+            "cold_chain": bool(b.requires_cold_chain),
+        })
+    return {"categories": sorted({i["category"] for i in items}), "items": items}

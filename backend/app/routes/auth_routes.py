@@ -31,7 +31,9 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     token = create_access_token({"user_id": new_user.id, "role": new_user.role})
-    return {"access_token": token, "role": new_user.role}
+    return {"access_token": token, "role": new_user.role,
+            "user": {"name": new_user.name, "email": new_user.email,
+                     "role": new_user.role, "organization_name": new_user.organization_name}}
 
 @router.post("/login", response_model=Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
@@ -40,4 +42,6 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token({"user_id": user.id, "role": user.role})
-    return {"access_token": token, "role": user.role}
+    return {"access_token": token, "role": user.role,
+            "user": {"name": user.name, "email": user.email,
+                     "role": user.role, "organization_name": user.organization_name}}

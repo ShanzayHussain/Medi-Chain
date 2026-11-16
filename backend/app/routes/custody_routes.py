@@ -55,6 +55,7 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Batch not found")
 
     result = verify_chain(db, batch.id)
+    result["chain_intact"] = result["valid"]
     result["batch_uid"] = batch_uid
     result["drug_name"] = batch.drug_name
     result["batch_status"] = batch.status

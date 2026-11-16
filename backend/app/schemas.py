@@ -18,6 +18,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: Optional[str] = None
+    user: Optional[dict] = None
 
 class BatchCreate(BaseModel):
     drug_name: str
