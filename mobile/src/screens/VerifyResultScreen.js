@@ -68,7 +68,7 @@ export default function VerifyResultScreen({ route, navigation }) {
     const riskColor = { low: C.ok, medium: C.warn, high: C.danger };
     const canBuy = cfg?.can_buy && ok && data.price_pkr > 0 && data.quantity_remaining > 0;
     const checks = [
-        { label: "Registered in supply chain", ok: (data.history || []).length > 0 },
+        { label: "Complete supply chain (manufacturer → distributor → pharmacy)", ok: data.supply_chain_complete === true },
         { label: "Records not tampered with", ok: intact },
         { label: "Not expired", ok: !data.is_expired },
         ...(cc?.required ? [{ label: "Cold chain maintained", ok: cc.status !== "breached" }] : []),

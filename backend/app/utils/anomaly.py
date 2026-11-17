@@ -33,7 +33,7 @@ def detect(db: Session):
     for b in batches:
         ev = events[b.id]
         if not ev:
-            add(b, "medium", "Batch has no custody records")
+            add(b, "high", "Incomplete supply chain: no manufacturer, distributor, or pharmacy records")
             continue
 
         if not verify_chain(db, b.id)["valid"]:
@@ -41,6 +41,27 @@ def detect(db: Session):
 
         if ev[0].event_type != "CREATED":
             add(b, "high", "History does not start with a CREATED event")
+
+        # Customer verification requires the complete manufacturer →
+        # distributor → pharmacy chain. A cryptographically intact partial
+        # history is still incomplete and must not be presented as valid.
+        stages = [
+            ("manufacturer creation", "CREATED", "manufacturer"),
+            ("distributor receipt", "TRANSFERRED", "distributor"),
+            ("pharmacy receipt", "TRANSFERRED", "pharmacy"),
+        ]
+        stage_positions = [
+            next((i for i, e in enumerate(ev)
+                  if e.event_type == event_type and e.actor_role == role), None)
+            for _, event_type, role in stages
+        ]
+        if any(position is None for position in stage_positions) or stage_positions != sorted(stage_positions):
+            missing = []
+            for (label, _, _), position in zip(stages, stage_positions):
+                if position is None:
+                    missing.append(label)
+            detail = "missing recorded " + " and ".join(missing) if missing else "events are out of order"
+            add(b, "high", "Incomplete supply chain: " + detail)
 
         top, received_by_pharmacy = 0, False
         for e in ev:

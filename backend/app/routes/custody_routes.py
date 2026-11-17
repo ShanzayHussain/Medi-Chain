@@ -29,6 +29,37 @@ def transfer_custody(
             detail="This batch is fully sold, custody cannot be transferred again. Possible QR reuse or counterfeit.",
         )
 
+    prior_events = (
+        db.query(CustodyLedger)
+        .filter(CustodyLedger.batch_id == batch.id)
+        .order_by(CustodyLedger.id.asc())
+        .all()
+    )
+    has_manufacturer_creation = any(
+        event.event_type == "CREATED" and event.actor_role == "manufacturer"
+        for event in prior_events
+    )
+    has_distributor_receipt = any(
+        event.event_type == "TRANSFERRED" and event.actor_role == "distributor"
+        for event in prior_events
+    )
+    has_pharmacy_receipt = any(
+        event.event_type == "TRANSFERRED" and event.actor_role == "pharmacy"
+        for event in prior_events
+    )
+
+    if not has_manufacturer_creation:
+        raise HTTPException(status_code=400, detail="Batch has no recorded manufacturer creation")
+    if user["role"] == "distributor" and (has_distributor_receipt or has_pharmacy_receipt):
+        raise HTTPException(status_code=400, detail="This batch has already been received downstream")
+    if user["role"] == "pharmacy" and not has_distributor_receipt:
+        raise HTTPException(
+            status_code=400,
+            detail="A distributor must receive this batch before a pharmacy can receive it",
+        )
+    if user["role"] == "pharmacy" and has_pharmacy_receipt:
+        raise HTTPException(status_code=400, detail="This batch has already been received by a pharmacy")
+
     entry = append_custody_event(
         db=db,
         batch_id=batch.id,
@@ -95,7 +126,32 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         }
         for entry, u in rows
     ]
-        # Cold chain
+
+    required_stages = [
+        ("CREATED", "manufacturer", "manufacturer creation"),
+        ("TRANSFERRED", "distributor", "distributor receipt"),
+        ("TRANSFERRED", "pharmacy", "pharmacy receipt"),
+    ]
+    stage_positions = [
+        next((i for i, (entry, _) in enumerate(rows)
+              if entry.event_type == event_type and entry.actor_role == role), None)
+        for event_type, role, _ in required_stages
+    ]
+    supply_chain_complete = (
+        all(position is not None for position in stage_positions)
+        and stage_positions == sorted(stage_positions)
+    )
+    result["supply_chain_complete"] = supply_chain_complete
+    if not supply_chain_complete:
+        missing = [
+            label for (_, _, label), position in zip(required_stages, stage_positions)
+            if position is None
+        ]
+        detail = "missing " + " and ".join(missing) if missing else "recorded hand-offs are out of order"
+        result["valid"] = False
+        result["reason"] = f"Incomplete supply chain: {detail}"
+
+    # Cold chain
     cc = coldchain_summary(db, batch)
     result["cold_chain"] = cc
     if cc["required"] and cc["status"] == "breached" and result["valid"]:
