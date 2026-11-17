@@ -10,6 +10,7 @@ import ScanScreen from "./ScanScreen";
 import VerifyResultScreen from "./VerifyResultScreen";
 import CheckoutScreen from "./CheckoutScreen";
 import CreateBatchScreen from "./CreateBatchScreen";
+import UnitTransferScreen from "./UnitTransferScreen";
 import BottomBar from "../components/BottomBar";
 import Btn from "../components/Btn";
 
@@ -119,6 +120,7 @@ export default function HomeScreen({ route, navigation }) {
     if (page.screen === "VerifyResult") return <VerifyResultScreen route={{ params: page.params }} navigation={shellNavigation} />;
     if (page.screen === "Checkout") return <CheckoutScreen route={{ params: page.params }} navigation={shellNavigation} />;
     if (page.screen === "CreateBatch") return <CreateBatchScreen />;
+    if (page.screen === "UnitTransfers") return <UnitTransferScreen route={{ params: page.params }} />;
     if (page.screen === "Dashboard") return <DashboardScreen route={{ params: page.params }} navigation={shellNavigation} />;
     return null;
   };

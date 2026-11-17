@@ -13,7 +13,8 @@ def get_last_ledger_entry(db: Session, batch_id: int):
 
 
 def append_custody_event(db: Session, batch_id: int, event_type: str,
-                          actor_id: int, actor_role: str, location: str):
+                          actor_id: int, actor_role: str, location: str,
+                          commit: bool = True):
     last_entry = get_last_ledger_entry(db, batch_id)
     previous_hash = last_entry.current_hash if last_entry else GENESIS_HASH
 
@@ -39,8 +40,9 @@ def append_custody_event(db: Session, batch_id: int, event_type: str,
     )
     new_entry.current_hash = compute_hash(record, previous_hash)
 
-    db.commit()
-    db.refresh(new_entry)
+    if commit:
+        db.commit()
+        db.refresh(new_entry)
     return new_entry
 
 

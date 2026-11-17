@@ -9,6 +9,9 @@ from app.schemas import CustodyTransfer
 from app.auth.dependencies import require_role
 from app.utils.ledger import append_custody_event, verify_chain
 from app.utils.coldchain import coldchain_summary
+from app.utils.unit_chain import unit_supply_chain_summary
+from app.utils.ids import parse_uuid
+from app.utils.inventory import batch_inventories, sync_batch_unit_owner
 
 router = APIRouter(prefix="/custody", tags=["custody"])
 
@@ -18,7 +21,8 @@ def transfer_custody(
     db: Session = Depends(get_db),
     user=Depends(require_role(["distributor", "pharmacy"])),
 ):
-    batch = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == transfer.batch_uid).first()
+    batch_uid = parse_uuid(transfer.batch_uid, "batch ID")
+    batch = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
@@ -69,6 +73,9 @@ def transfer_custody(
         location=transfer.location,
     )
 
+    # Batch receipt hands the available serialized stock to this recipient.
+    sync_batch_unit_owner(db, batch.id)
+
     batch.status = "in_transit"
     db.commit()
 
@@ -81,13 +88,14 @@ def transfer_custody(
 
 @router.get("/verify/{batch_uid}")
 def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
+    batch_uid = parse_uuid(batch_uid, "batch ID")
     batch = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     result = verify_chain(db, batch.id)
     result["chain_intact"] = result["valid"]
-    result["batch_uid"] = batch_uid
+    result["batch_uid"] = str(batch.batch_uid)
     result["drug_name"] = batch.drug_name
     result["batch_status"] = batch.status
 
@@ -100,11 +108,13 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         result["reason"] = f"Batch expired on {batch.expiry_date.isoformat()}"
 
     # Stock
-    sold = batch.quantity_sold or 0
-    result["quantity_total"] = batch.quantity
+    inventory = batch_inventories(db, [batch])[batch.id]
+    sold = inventory["sold"] if inventory["serialized"] else (batch.quantity_sold or 0)
+    total = inventory["total"] if inventory["serialized"] else batch.quantity
+    result["quantity_total"] = total
     result["quantity_sold"] = sold
-    result["quantity_remaining"] = batch.quantity - sold
-    result["sold_out"] = sold >= batch.quantity
+    result["quantity_remaining"] = max(0, total - sold)
+    result["sold_out"] = sold >= total
     if result["sold_out"]:
         result["warning"] = "All units of this batch are already sold. A new scan of this QR on a product may indicate reuse or counterfeit packaging."
 
@@ -127,6 +137,22 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
         for entry, u in rows
     ]
 
+    unit_chain = unit_supply_chain_summary(db, batch.id)
+    if unit_chain:
+        result["serialized_inventory"] = unit_chain
+        if unit_chain["distributor_received_units"]:
+            result["history"].append({
+                "event": "RECEIVED", "role": "distributor",
+                "organization": f"Recorded for {unit_chain['distributor_received_units']} of {unit_chain['unit_count']} units",
+                "location": "Unit movement records", "timestamp": None,
+            })
+        if unit_chain["pharmacy_received_units"]:
+            result["history"].append({
+                "event": "RECEIVED", "role": "pharmacy",
+                "organization": f"Recorded for {unit_chain['pharmacy_received_units']} of {unit_chain['unit_count']} units",
+                "location": "Unit movement records", "timestamp": None,
+            })
+
     required_stages = [
         ("CREATED", "manufacturer", "manufacturer creation"),
         ("TRANSFERRED", "distributor", "distributor receipt"),
@@ -137,6 +163,9 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
               if entry.event_type == event_type and entry.actor_role == role), None)
         for event_type, role, _ in required_stages
     ]
+    # Batch QR verification follows the batch custody ledger. Unit movement
+    # events are useful inventory detail, but must not override confirmed
+    # manufacturer → distributor → pharmacy batch hand-offs.
     supply_chain_complete = (
         all(position is not None for position in stage_positions)
         and stage_positions == sorted(stage_positions)
@@ -147,7 +176,10 @@ def verify_batch(batch_uid: str, db: Session = Depends(get_db)):
             label for (_, _, label), position in zip(required_stages, stage_positions)
             if position is None
         ]
-        detail = "missing " + " and ".join(missing) if missing else "recorded hand-offs are out of order"
+        if unit_chain:
+            detail = f"{unit_chain['incomplete_units']} of {unit_chain['unit_count']} units have incomplete hand-offs"
+        else:
+            detail = "missing " + " and ".join(missing) if missing else "recorded hand-offs are out of order"
         result["valid"] = False
         result["reason"] = f"Incomplete supply chain: {detail}"
 

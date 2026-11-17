@@ -20,24 +20,28 @@ class Token(BaseModel):
     role: Optional[str] = None
     user: Optional[dict] = None
 
-class BatchCreate(BaseModel):
-    drug_name: str
-    quantity: int
-    manufacture_date: date
-    expiry_date: date
-
 class CustodyTransfer(BaseModel):
     batch_uid: str
     location: str
+
+
+class UnitTransferCreate(BaseModel):
+    unit_uids: list[str] = Field(min_length=1, max_length=1000)
+    recipient_id: int = Field(gt=0)
+    location: str = Field(min_length=1, max_length=100)
 
 class SaleCreate(BaseModel):
     batch_uid: str
     quantity: int = Field(gt=0)   # units sold in this sale, must be positive
     location: str
 
+class UnitSaleCreate(BaseModel):
+    unit_uid: str
+    location: str = Field(min_length=1, max_length=100)
+
 class BatchCreate(BaseModel):
     drug_name: str
-    quantity: int
+    quantity: int = Field(gt=0)
     manufacture_date: date
     expiry_date: date
     cold_chain: bool = False

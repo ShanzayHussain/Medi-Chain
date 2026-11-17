@@ -10,10 +10,10 @@ import Btn from "../components/Btn";
 
 const BAD = ["#7f1d1d", "#b71c1c", "#d32f2f"];
 const ROLE_ICON = { manufacturer: "factory", distributor: "truck-delivery-outline", pharmacy: "storefront-outline", customer: "account-outline" };
-const EVENT_LABEL = { CREATED: "Manufactured", TRANSFERRED: "Received", SOLD: "Sold" };
+const EVENT_LABEL = { CREATED: "Manufactured", TRANSFERRED: "Received", SOLD: "Sold", TRANSFER_REQUESTED: "Transfer requested", RECEIVED: "Received", FLAGGED: "Flagged" };
 
 export default function VerifyResultScreen({ route, navigation }) {
-    const { batch_uid } = route.params;
+    const { batch_uid, unit_uid } = route.params;
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
     const [ai, setAi] = useState(null);
@@ -25,18 +25,27 @@ export default function VerifyResultScreen({ route, navigation }) {
     const [cfg, setCfg] = useState(null);
 
     useEffect(() => {
-        api(`/custody/verify/${batch_uid}`)
-            .then(setData)
-            .catch((e) => setError(e.message));
-        // runs automatically; a failure here must not break the screen
-        api(`/ai/check/${batch_uid}`).then(setCheck).catch(() => { });
+        if (unit_uid) {
+            api(`/units/${unit_uid}/scan`, "POST")
+                .then((result) => {
+                    setData(result);
+                    setCheck({ risk_level: result.risk_level, findings: result.findings });
+                })
+                .catch((e) => setError(e.message));
+        } else {
+            api(`/custody/verify/${batch_uid}`)
+                .then(setData)
+                .catch((e) => setError(e.message));
+            // runs automatically; a failure here must not break the screen
+            api(`/ai/check/${batch_uid}`).then(setCheck).catch(() => { });
+        }
         api("/payments/config").then(setCfg).catch(() => { });
-    }, [batch_uid]);
+    }, [batch_uid, unit_uid]);
 
     const explain = async () => {
         setAiBusy(true);
         try {
-            setAi(await api(`/ai/explain/${batch_uid}`));
+            setAi(await api(`/ai/explain/${data.batch_uid || batch_uid}`));
         } catch (e) {
             setAi({ error: e.message });
         } finally {
@@ -48,7 +57,7 @@ export default function VerifyResultScreen({ route, navigation }) {
         if (note.trim().length < 5) return Alert.alert("Too short", "Please describe what looks wrong");
         setSending(true);
         try {
-            const res = await api("/ai/report-suspicious", "POST", { batch_uid, note: note.trim() });
+            const res = await api("/ai/report-suspicious", "POST", { batch_uid: data.batch_uid || batch_uid, note: note.trim() });
             Alert.alert("Thank you", `${res.message}\nCategory: ${res.category} (${res.severity})`);
             setNote("");
             setShowReport(false);
@@ -66,7 +75,7 @@ export default function VerifyResultScreen({ route, navigation }) {
     const intact = data.chain_intact !== false;
     const cc = data.cold_chain;
     const riskColor = { low: C.ok, medium: C.warn, high: C.danger };
-    const canBuy = cfg?.can_buy && ok && data.price_pkr > 0 && data.quantity_remaining > 0;
+    const canBuy = !unit_uid && cfg?.can_buy && ok && data.price_pkr > 0 && data.quantity_remaining > 0;
     const checks = [
         { label: "Complete supply chain (manufacturer → distributor → pharmacy)", ok: data.supply_chain_complete === true },
         { label: "Records not tampered with", ok: intact },
@@ -84,7 +93,7 @@ export default function VerifyResultScreen({ route, navigation }) {
             {check && (
                 <View style={[s.checkBox, { borderColor: riskColor[check.risk_level] }]}>
                     <Text style={[s.checkTitle, { color: riskColor[check.risk_level] }]}>
-                        AI risk check: {check.risk_level.toUpperCase()}
+                        {unit_uid ? "Unit risk check" : "AI risk check"}: {check.risk_level.toUpperCase()}
                     </Text>
                     {check.findings.length === 0 && (
                         <Text style={s.text}>No anomalies detected in this batch's history.</Text>
@@ -95,7 +104,8 @@ export default function VerifyResultScreen({ route, navigation }) {
                 </View>
             )}
 
-            <View style={s.card}><Text style={s.drug}>{data.drug_name}</Text><Text style={s.text}>Batch {batch_uid.slice(0, 8)}</Text>
+            <View style={s.card}><Text style={s.drug}>{data.drug_name}</Text><Text style={s.text}>Batch {(data.batch_uid || batch_uid).slice(0, 8)}</Text>
+            {unit_uid && <><Text style={s.text}>Package serial: {data.serial_number}</Text><Text style={s.text}>Manufacturer: {data.manufacturer}</Text><Text style={s.text}>Current owner: {data.current_owner_role || "Unknown"}</Text><Text style={s.text}>Unit status: {data.status}</Text></>}
             <Text style={s.text}>Expiry: {data.expiry_date}{data.is_expired ? " (EXPIRED)" : ""}</Text>
             <Text style={s.text}>Units remaining in batch: {data.quantity_remaining} of {data.quantity_total}</Text>
             {data.price_pkr > 0 && <Text style={s.text}>Price: PKR {data.price_pkr} per unit</Text>}
@@ -118,7 +128,7 @@ export default function VerifyResultScreen({ route, navigation }) {
             )}
             {data.warning && <Text style={s.warn}>{data.warning}</Text>}
 
-            <View style={s.aiBox}>
+            {!unit_uid && <View style={s.aiBox}>
                 <Btn title={aiBusy ? "Analysing..." : "Explain with AI"} variant="alt" onPress={explain} disabled={aiBusy} style={{ marginTop: 0 }} />
                 {ai?.error && <Text style={s.bad}>{ai.error}</Text>}
                 {ai && !ai.error && (
@@ -132,7 +142,7 @@ export default function VerifyResultScreen({ route, navigation }) {
                         </Text>
                     </View>
                 )}
-            </View>
+            </View>}
 
             {/* report suspicious medicine */}
             <View style={s.reportBox}>
@@ -157,7 +167,7 @@ export default function VerifyResultScreen({ route, navigation }) {
             </View>
 
             <Text style={s.section}>Supply chain history</Text>
-            <View style={s.card}>{data.history.map((h, i) => <View key={i} style={s.tRow}><View style={s.tLeft}><View style={s.tIcon}><Icon name={ROLE_ICON[h.role] || "circle-outline"} size={20} color={C.primary} /></View>{i < data.history.length - 1 && <View style={s.tLine} />}</View><View style={s.tBody}><Text style={s.event}>{EVENT_LABEL[h.event] || h.event} • {h.role}</Text><Text style={s.text}>{h.organization}</Text><Text style={s.small}>{h.location} • {h.timestamp?.slice(0, 16).replace("T", " ")}</Text></View><Icon name={intact ? "check-circle" : "alert-circle"} size={20} color={intact ? C.ok : C.danger} /></View>)}<Text style={s.foot}>{intact ? "All steps verified with hash-chain checking" : "The record of one or more steps does not match its seal"}</Text></View>
+            <View style={s.card}>{data.history.map((h, i) => <View key={i} style={s.tRow}><View style={s.tLeft}><View style={s.tIcon}><Icon name={ROLE_ICON[h.role] || "circle-outline"} size={20} color={C.primary} /></View>{i < data.history.length - 1 && <View style={s.tLine} />}</View><View style={s.tBody}><Text style={s.event}>{EVENT_LABEL[h.event] || h.event} • {h.role}</Text>{h.organization && <Text style={s.text}>{h.organization}</Text>}<Text style={s.small}>{h.location ? `${h.location} • ` : ""}{h.timestamp?.slice(0, 16).replace("T", " ")}</Text></View><Icon name={intact ? "check-circle" : "alert-circle"} size={20} color={intact ? C.ok : C.danger} /></View>)}<Text style={s.foot}>{intact ? "All steps verified with hash-chain checking" : "The record of one or more steps does not match its seal"}</Text></View>
         </ScrollView>
     );
 }

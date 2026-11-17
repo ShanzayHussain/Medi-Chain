@@ -32,11 +32,15 @@ export default function ScanScreen({ route, navigation }) {
     }
 
     const rescan = () => { setUid(null); setLocked(false); };
+    const isUnitQr = mode === "sell" && uid?.startsWith("MCU:");
 
     const onScan = ({ data }) => {
         if (locked || !data) return;
         setLocked(true);
-        if (mode === "verify") navigation.replace("VerifyResult", { batch_uid: data });
+        if (mode === "verify") {
+            if (data.startsWith("MCU:")) navigation.replace("VerifyResult", { unit_uid: data.slice(4) });
+            else navigation.replace("VerifyResult", { batch_uid: data });
+        }
         else setUid(data);
     };
 
@@ -50,10 +54,15 @@ export default function ScanScreen({ route, navigation }) {
         let body = { batch_uid: uid, location: location.trim() };
 
         if (mode === "sell") {
-            const qty = parseInt(quantity, 10);
-            if (!qty || qty <= 0) return Alert.alert("Invalid", "Enter how many units were sold");
-            path = "/transactions/";
-            body = { batch_uid: uid, quantity: qty, location: location.trim() };
+            if (uid.startsWith("MCU:")) {
+                path = "/transactions/unit";
+                body = { unit_uid: uid, location: location.trim() };
+            } else {
+                const qty = parseInt(quantity, 10);
+                if (!qty || qty <= 0) return Alert.alert("Invalid", "Enter how many units were sold");
+                path = "/transactions/";
+                body = { batch_uid: uid, quantity: qty, location: location.trim() };
+            }
         } else if (mode === "temp") {
             const t = parseFloat(temperature);
             if (isNaN(t)) return Alert.alert("Invalid", "Enter the temperature in °C");
@@ -64,7 +73,7 @@ export default function ScanScreen({ route, navigation }) {
         setBusy(true);
         try {
             const res = await api(path, "POST", body);
-            if (mode === "sell") done("Recorded", `${res.units_sold} units sold. ${res.units_remaining} left in this batch.`);
+            if (mode === "sell") done("Recorded", `${res.units_sold} unit${res.units_sold === 1 ? "" : "s"} sold. ${res.units_remaining} left in this batch.`);
             else if (mode === "temp")
                 done(res.breach ? "BREACH" : "Saved",
                     res.breach ? `${res.temperature_c}°C is outside ${res.range}. The batch was flagged.`
@@ -97,8 +106,8 @@ export default function ScanScreen({ route, navigation }) {
             <View style={s.form}>
                 <View style={s.card}>
                 <Text style={s.title}>{mode === "sell" ? "Record sale" : mode === "temp" ? "Temperature reading" : "Confirm received"}</Text>
-                <Text selectable style={s.uid}>Batch: {uid}</Text>
-                {mode === "sell" && (
+                <Text selectable style={s.uid}>{isUnitQr ? `Medicine unit: ${uid.slice(4)}` : `Batch: ${uid}`}</Text>
+                {mode === "sell" && !isUnitQr && (
                 <TextInput style={s.input} placeholder="Units sold" placeholderTextColor={C.muted} keyboardType="numeric"
                         value={quantity} onChangeText={setQuantity} />
                 )}

@@ -7,13 +7,16 @@ from app.models.batch import MedicineBatch
 from app.schemas import TemperatureIn
 from app.auth.dependencies import require_role
 from app.utils.coldchain import add_reading, coldchain_summary
+from app.utils.ids import parse_uuid
 
 router = APIRouter(prefix="/coldchain", tags=["coldchain"])
 WRITERS = ["manufacturer", "distributor", "pharmacy", "admin"]
 
 
 def get_cold_batch(db: Session, batch_uid: str):
-    b = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
+    b = db.query(MedicineBatch).filter(
+        MedicineBatch.batch_uid == parse_uuid(batch_uid, "batch ID")
+    ).first()
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
     if not b.requires_cold_chain:
@@ -58,7 +61,9 @@ def simulate(batch_uid: str, breach: bool = False, db: Session = Depends(get_db)
 
 @router.get("/{batch_uid}")
 def get_log(batch_uid: str, db: Session = Depends(get_db)):
-    b = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
+    b = db.query(MedicineBatch).filter(
+        MedicineBatch.batch_uid == parse_uuid(batch_uid, "batch ID")
+    ).first()
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
     return coldchain_summary(db, b)

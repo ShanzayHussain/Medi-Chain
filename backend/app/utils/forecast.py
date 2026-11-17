@@ -1,10 +1,10 @@
 import statistics
 from collections import defaultdict
 from datetime import date, timedelta
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.batch import MedicineBatch
 from app.models.transaction import Transaction
+from app.utils.inventory import batch_inventories
 
 WEEKS = 8
 
@@ -31,13 +31,12 @@ def forecast_demand(db: Session):
         if 0 <= idx < WEEKS:
             sales[drug][idx] += qty
 
-    stock = {
-        d: int(q or 0) for d, q in
-        db.query(MedicineBatch.drug_name,
-                 func.sum(MedicineBatch.quantity - func.coalesce(MedicineBatch.quantity_sold, 0)))
-        .filter(MedicineBatch.expiry_date >= today)
-        .group_by(MedicineBatch.drug_name).all()
-    }
+    stock = defaultdict(int)
+    active_batches = db.query(MedicineBatch).filter(MedicineBatch.expiry_date >= today).all()
+    inventories = batch_inventories(db, active_batches)
+    for batch in active_batches:
+        inventory = inventories[batch.id]
+        stock[batch.drug_name] += inventory["forecast_stock"]
 
     out = []
     for drug in set(stock) | set(sales):

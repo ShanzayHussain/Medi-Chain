@@ -16,7 +16,7 @@ const luhn = (n) => {
 };
 
 export default function CheckoutScreen({ route, navigation }) {
-  const { batch_uid } = route.params;
+  const { batch_uid, seller_id, seller_stock, seller } = route.params;
   const [info, setInfo] = useState(null);
   const [cfg, setCfg] = useState(null);
   const [qty, setQty] = useState("1");
@@ -46,9 +46,10 @@ export default function CheckoutScreen({ route, navigation }) {
   const placeOrder = () => {
     const n = parseInt(qty, 10);
     if (!n || n <= 0) return setMsg({ text: "Enter how many units you want", bad: true });
-    if (n > info.quantity_remaining) return setMsg({ text: `Only ${info.quantity_remaining} units left`, bad: true });
+    const available = seller_stock ?? info.quantity_remaining;
+    if (n > available) return setMsg({ text: `Only ${available} units left at this pharmacy`, bad: true });
     run(async () => {
-      setOrder(await api("/payments/orders", "POST", { batch_uid, quantity: n }));
+      setOrder(await api("/payments/orders", "POST", { batch_uid, quantity: n, ...(seller_id ? { seller_id } : {}) }));
       setMsg(null);
     });
   };
@@ -145,7 +146,7 @@ export default function CheckoutScreen({ route, navigation }) {
   return (
     <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
       <Text style={s.title}>{info.drug_name}</Text>
-      <Text style={s.text}>PKR {info.price_pkr} per unit • {info.quantity_remaining} units left</Text>
+      <Text style={s.text}>PKR {info.price_pkr} per unit • {seller_stock ?? info.quantity_remaining} units left{seller ? ` at ${seller}` : ""}</Text>
 
       {!order ? (
         <View style={s.card}>

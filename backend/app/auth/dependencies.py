@@ -4,11 +4,24 @@ from jose import jwt, JWTError
 from app.config import JWT_SECRET
 
 bearer_scheme = HTTPBearer()
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return {"user_id": payload.get("user_id"), "role": payload.get("role")}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(optional_bearer_scheme),
+):
+    if credentials is None:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
         return {"user_id": payload.get("user_id"), "role": payload.get("role")}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")

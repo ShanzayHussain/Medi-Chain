@@ -21,17 +21,17 @@ const ROLE_CONTENT = {
     manufacturer: {
         title: "Create trusted batches",
         subtitle: "Register each medicine batch and follow its journey through the supply chain.",
-        actions: [{ label: "Create batch", icon: "plus-box-outline", screen: "CreateBatch" }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }, { label: "Demand forecast", icon: "chart-line", screen: "Dashboard", params: { path: "/ai/forecast" } }],
+        actions: [{ label: "Create batch", icon: "plus-box-outline", screen: "CreateBatch" }, { label: "Transfer unit stock", icon: "truck-delivery-outline", screen: "UnitTransfers", params: { mode: "send" } }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }, { label: "Demand forecast", icon: "chart-line", screen: "Dashboard", params: { path: "/ai/forecast" } }],
     },
     distributor: {
         title: "Keep stock moving safely",
         subtitle: "Receive batches, record handling conditions and keep every handover traceable.",
-        actions: [{ label: "Receive stock", icon: "truck-delivery-outline", screen: "Scan", params: { mode: "receive" } }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }, { label: "Demand forecast", icon: "chart-line", screen: "Dashboard", params: { path: "/ai/forecast" } }],
+        actions: [{ label: "Receive batch stock", icon: "truck-delivery-outline", screen: "Scan", params: { mode: "receive" } }, { label: "Receive unit transfer", icon: "package-down", screen: "UnitTransfers", params: { mode: "receive" } }, { label: "Transfer unit stock", icon: "truck-fast-outline", screen: "UnitTransfers", params: { mode: "send" } }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }, { label: "Demand forecast", icon: "chart-line", screen: "Dashboard", params: { path: "/ai/forecast" } }],
     },
     pharmacy: {
         title: "Manage pharmacy stock",
         subtitle: "Receive verified batches, record sales and track your payment activity.",
-        actions: [{ label: "Receive stock", icon: "truck-delivery-outline", screen: "Scan", params: { mode: "receive" } }, { label: "Record sale", icon: "cash-register", screen: "Scan", params: { mode: "sell" } }, { label: "Payments", icon: "credit-card-outline", screen: "Dashboard", params: { path: "/payments/orders" } }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }],
+        actions: [{ label: "Receive batch stock", icon: "truck-delivery-outline", screen: "Scan", params: { mode: "receive" } }, { label: "Receive unit transfer", icon: "package-down", screen: "UnitTransfers", params: { mode: "receive" } }, { label: "Record sale", icon: "cash-register", screen: "Scan", params: { mode: "sell" } }, { label: "Payments", icon: "credit-card-outline", screen: "Dashboard", params: { path: "/payments/orders" } }, { label: "Cold chain", icon: "thermometer", screen: "Scan", params: { mode: "temp" } }],
     },
     admin: {
         title: "Supply chain overview",

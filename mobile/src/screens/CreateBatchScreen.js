@@ -4,7 +4,7 @@ import {
 } from "react-native";
 import { api } from "../api";
 import { C } from "../theme";
-import { printLabels, shareLabels, downloadPng } from "../qrLabels";
+import { printLabels, saveLabelsPdf, downloadPng } from "../qrLabels";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -17,7 +17,9 @@ export default function CreateBatchScreen() {
     const [cold, setCold] = useState(false);
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [copies, setCopies] = useState("12");
+    const [unitLabelsBusy, setUnitLabelsBusy] = useState(false);
+    const [unitLabelsProgress, setUnitLabelsProgress] = useState("");
+    const [unitLabelsError, setUnitLabelsError] = useState("");
 
     const submit = async () => {
         const qty = parseInt(quantity, 10);
@@ -51,19 +53,61 @@ export default function CreateBatchScreen() {
     const reset = () => {
         setResult(null);
         setDrugName(""); setQuantity(""); setMfgDate(""); setExpDate("");
-        setCold(false); setCopies("12");
-    };
-
-    const labelOpts = () => {
-        const n = Math.min(60, Math.max(1, parseInt(copies, 10) || 1));
-        return {
-            qr: result.qr_code_base64, drug: result.drug_name, uid: result.batch_uid,
-            expiry: result.expiry, copies: n
-        };
+        setCold(false);
     };
 
     const run = async (fn) => {
         try { await fn(); } catch (e) { Alert.alert("Could not complete", e.message); }
+    };
+
+    const downloadAllUnitLabels = async (print = false) => {
+        // Open synchronously from the tap so browsers do not block the print window
+        // after the asynchronous paginated QR requests finish.
+        const printWindow = Platform.OS === "web" ? window.open("", "_blank") : null;
+        setUnitLabelsBusy(true);
+        setUnitLabelsError("");
+        setUnitLabelsProgress("Loading medicine QR codes...");
+        try {
+            if (Platform.OS === "web" && !printWindow) {
+                throw new Error("Allow pop-ups to print or save the QR labels as PDF.");
+            }
+            const pageSize = 100;
+            const items = [];
+            let total = null;
+            for (let offset = 0; total === null || offset < total; offset += pageSize) {
+                const data = await api(`/batches/${result.batch_uid}/unit-labels?limit=${pageSize}&offset=${offset}`);
+                if (total === null) total = data.total;
+                if (data.total !== total || !Array.isArray(data.items) || data.items.length === 0 && offset < total) {
+                    throw new Error("Could not load every medicine QR label. Please try again.");
+                }
+                items.push(...data.items);
+                setUnitLabelsProgress(`Loaded ${items.length} of ${total} medicine QR codes...`);
+            }
+            if (items.length !== total || total !== result.quantity) {
+                throw new Error(`Expected ${result.quantity} medicine QR codes, but found ${items.length}.`);
+            }
+            const opts = { drug: result.drug_name, expiry: result.expiry, units: items };
+            if (Platform.OS === "web") {
+                await printLabels(opts, printWindow);
+            } else if (!print) {
+                const outcome = await saveLabelsPdf(
+                    opts,
+                    `medichain-units-${result.batch_uid.slice(0, 8)}`,
+                );
+                if (!outcome?.saved) Alert.alert("Download cancelled", "Choose a folder to save the PDF.");
+                else if (outcome.shared) Alert.alert("PDF ready", "Use the share menu to save the medicine QR PDF.");
+                else if (Platform.OS === "android") Alert.alert("PDF downloaded", "The medicine QR PDF was saved to your selected folder.");
+            } else {
+                await printLabels(opts);
+            }
+        } catch (e) {
+            if (printWindow && !printWindow.closed) printWindow.close();
+            setUnitLabelsError(e.message || "Could not prepare medicine labels.");
+            Alert.alert("Could not prepare medicine QR PDF", e.message);
+        } finally {
+            setUnitLabelsBusy(false);
+            setUnitLabelsProgress("");
+        }
     };
 
     if (result) {
@@ -72,6 +116,7 @@ export default function CreateBatchScreen() {
                 <Text style={s.title}>Batch created</Text>
                 <Text style={s.drug}>{result.drug_name}</Text>
                 <Text style={s.meta}>Quantity: {result.quantity}</Text>
+                <Text style={s.meta}>Serialized units created: {result.unit_count}</Text>
                 <Text style={s.meta}>Expiry: {result.expiry}</Text>
                 {result.cold && <Text style={s.meta}>Cold chain: required (2–8 °C)</Text>}
 
@@ -79,20 +124,21 @@ export default function CreateBatchScreen() {
                 <Text style={s.uidLabel}>Batch ID</Text>
                 <Text selectable style={s.uid}>{result.batch_uid}</Text>
 
-                <Text style={s.label}>Number of labels to print</Text>
-                <TextInput style={s.input} keyboardType="numeric" value={copies} onChangeText={setCopies} />
-
-                <View style={s.btn}><Button title="Print labels" color={C.primary}
-                    onPress={() => run(() => printLabels(labelOpts()))} /></View>
-                <View style={s.btn}><Button title="Save / share as PDF" color={C.accent}
-                    onPress={() => run(() => shareLabels(labelOpts()))} /></View>
+                <Text style={s.label}>Individual medicine QR labels</Text>
+                <Text style={s.note}>PDFs include one unique QR label for every package in this batch ({result.quantity} labels).</Text>
+                {!!unitLabelsProgress && <Text style={s.note}>{unitLabelsProgress}</Text>}
+                {!!unitLabelsError && <Text style={s.error}>{unitLabelsError}</Text>}
+                <View style={s.btn}><Button title={unitLabelsBusy ? "Preparing medicine labels..." : "Save / share as PDF"} color={C.accent}
+                    onPress={() => downloadAllUnitLabels()} disabled={unitLabelsBusy} /></View>
+                <View style={s.btn}><Button title={unitLabelsBusy ? "Preparing medicine labels..." : "Print labels"} color={C.primary}
+                    onPress={() => downloadAllUnitLabels(true)} disabled={unitLabelsBusy} /></View>
                 {Platform.OS === "web" && (
-                    <View style={s.btn}><Button title="Download QR as PNG" color={C.accent}
+                    <View style={s.btn}><Button title="Download batch QR as PNG" color={C.accent}
                         onPress={() => downloadPng(result.qr_code_base64, `qr-${result.batch_uid.slice(0, 8)}`)} /></View>
                 )}
                 <View style={s.btn}><Button title="Create another batch" color={C.navy} onPress={reset} /></View>
                 <Text style={s.note}>
-                    Print the QR and stick it on the packs or cartons before dispatch. The QR only contains the batch ID.
+                    Each medicine label has a unique QR linked to this batch. Use the batch QR above for batch-level verification.
                 </Text>
             </ScrollView>
         );
@@ -133,6 +179,7 @@ const s = StyleSheet.create({
     label: { fontWeight: "600", color: C.navy, marginBottom: 6 },
     btn: { marginBottom: 10 },
     note: { color: C.muted, marginTop: 8, fontSize: 13 },
+    error: { color: C.danger, marginTop: 8, fontSize: 13 },
     switchRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
     switchLabel: { marginLeft: 10, fontSize: 16, color: C.dark },
 });

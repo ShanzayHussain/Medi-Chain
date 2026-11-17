@@ -16,6 +16,7 @@ from app.utils.llm import chat_json
 import json
 from datetime import date
 from app.schemas import SuspiciousReport
+from app.utils.ids import parse_uuid
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -103,9 +104,15 @@ Give at most 5 priorities."""
 
 def build_facts(db: Session, batch_uid: str):
     v = verify_batch(batch_uid, db)        # raises 404 if the batch doesn't exist
-    b = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
+    b = db.query(MedicineBatch).filter(
+        MedicineBatch.batch_uid == parse_uuid(batch_uid, "batch ID")
+    ).first()
     cc = v.get("cold_chain", {})
     flags = db.query(Flag).filter(Flag.batch_id == b.id, Flag.resolved == False).all()
+    if v.get("supply_chain_complete"):
+        flags = [f for f in flags if not (
+            f.reason.startswith("AI [") and "Incomplete supply chain:" in f.reason
+        )]
     facts = {
         "drug": v["drug_name"],
         "system_verdict": "PASS" if v["valid"] else "FAIL",
@@ -197,7 +204,9 @@ Rules:
 
 @router.get("/check/{batch_uid}")
 def ai_check(batch_uid: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    b = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == batch_uid).first()
+    b = db.query(MedicineBatch).filter(
+        MedicineBatch.batch_uid == parse_uuid(batch_uid, "batch ID")
+    ).first()
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
 
@@ -213,11 +222,17 @@ def ai_check(batch_uid: str, db: Session = Depends(get_db), user=Depends(get_cur
              else "medium" if findings else "low")
 
     # High-risk findings become admin flags (no duplicates; cold chain is flagged elsewhere)
+    for old_flag in db.query(Flag).filter(Flag.batch_id == b.id, Flag.resolved == False).all():
+        if old_flag.reason.startswith("AI [") and "Incomplete supply chain:" in old_flag.reason:
+            old_flag.resolved = True
     for f in findings:
         if f["severity"] != "high" or f["reason"].startswith("Cold chain"):
             continue
         reason = f"AI [high] {f['reason']}"[:200]
-        if not db.query(Flag).filter(Flag.batch_id == b.id, Flag.reason == reason).first():
+        existing = db.query(Flag).filter(Flag.batch_id == b.id, Flag.reason == reason).first()
+        if existing and existing.resolved:
+            existing.resolved = False
+        elif not existing:
             db.add(Flag(batch_id=b.id, reason=reason))
     db.commit()
 
@@ -227,7 +242,9 @@ def ai_check(batch_uid: str, db: Session = Depends(get_db), user=Depends(get_cur
 @router.post("/report-suspicious")
 def report_suspicious(r: SuspiciousReport, db: Session = Depends(get_db),
                       user=Depends(get_current_user)):
-    b = db.query(MedicineBatch).filter(MedicineBatch.batch_uid == r.batch_uid).first()
+    b = db.query(MedicineBatch).filter(
+        MedicineBatch.batch_uid == parse_uuid(r.batch_uid, "batch ID")
+    ).first()
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
 

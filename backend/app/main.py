@@ -12,6 +12,7 @@ from fastapi import Depends
 from app.models import user, batch, custody_ledger, transaction, flag, temperature, order  # noqa: F401
 from app.routes import coldchain_routes, ai_routes
 from app.routes import payment_routes
+from app.routes import unit_routes
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="MediChain API")
@@ -32,6 +33,8 @@ app.include_router(dashboard_routes.router)
 app.include_router(coldchain_routes.router)
 app.include_router(ai_routes.router)
 app.include_router(payment_routes.router)
+app.include_router(unit_routes.unit_router)
+app.include_router(unit_routes.transfer_router)
 
 @app.get("/health")
 def health_check():
